@@ -32,39 +32,66 @@ npm install
 npm run start
 ```
 
-4. Visit any URL in the browser (e.g., http://localhost:4200/features/view or just http://localhost:4200)
+4. Visit any URL in the browser (e.g., http://localhost:4200/home or just http://localhost:4200)
 
 The error will appear in the terminal.
 
 ## Bug Source
 
-The bug happens because of route configuration `src/app/features/features.routes.ts`.
-`redirectTo` seems to have a buggy interaction with catch-all route registered in `src/app/app.routes.ts`.
+The bug happens because of route configuration in `src/app/app.routes.ts`:
 
 ```typescript
-{
-  path: '',
-  component: FeaturesComponent,
-  children: [
-    { path: 'details', component: FeatureDetailsComponent },
-    { path: 'view', redirectTo: 'details', pathMatch: 'full' }, // This line causes the issue
-  ],
-}
+export const routes: Routes = [
+  { path: "", component: HomeComponent, pathMatch: "full" },
+  { path: "home", redirectTo: "", pathMatch: "full" }, // This line causes the issue
+  {
+    path: "features",
+    loadChildren: () => import("./features/features.routes").then((m) => m.FEATURES_ROUTES),
+  },
+  { path: "**", component: NotFoundComponent },
+];
 ```
 
-Remove the `redirectTo` line to fix the issue:
+`redirectTo` seems to have a buggy interaction with catch-all route (`path: "**"`).
+It has `status: 404` configured in `app.routes.server.ts`.
+
+## Current Workaround
+
+To make the redirects work, you need to explicitly register the redirect routes in `app.routes.server.ts`:
 
 ```typescript
-{
-  path: '',
-  component: FeaturesComponent,
-  children: [
-    { path: 'details', component: FeatureDetailsComponent },
-    // Remove the redirect line
-  ],
-}
+export const serverRoutes: ServerRoute[] = [
+  {
+    path: "",
+    renderMode: RenderMode.Prerender,
+  },
+  // Registering this fixes the issue.
+  {
+    path: "home",
+    renderMode: RenderMode.Client, // or any other render mode
+  },
+
+  // Other routes...
+
+  // Catch-all route
+  {
+    path: "**",
+    renderMode: RenderMode.Client,
+    status: 404,
+  },
+];
 ```
+
+Note: The same issue also occurs with nested redirects in lazy-loaded routes (e.g., in `features.routes.ts`).
+
+## Why Is This a Bug
+
+1. The workaround required for the app that has such a setup is not obvious.
+2. The render mode chosen for the redirect route doesn't matter - any mode will fix the issue.
+3. This is unexpected behavior as redirects should work without needing explicit server route registration.
+4. The error message suggests a 404 status code issue, but the actual problem is related to route registration.
+5. This creates unnecessary complexity and potential maintenance issues.
 
 ## Expected Behavior
 
-The application should work properly with nested `redirectTo` routes and catch-all route which returns 404 status code (very common practice) without throwing any server errors.
+The application should work properly with `redirectTo` routes and catch-all route which returns 404 status code (very common practice) without throwing any server errors or requiring additional route registration.
