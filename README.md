@@ -1,59 +1,70 @@
-# CatchAllRouteBug
+# Angular SSR Redirect Bug Reproduction
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.0.7.
+This project demonstrates a bug in Angular's SSR (Server-Side Rendering) where using `redirectTo` in routes causes a 404 status code error.
 
-## Development server
+## Bug Description
 
-To start a local development server, run:
+When using `redirectTo` in route config, the server throws an error:
 
-```bash
-ng serve
+```
+Error: Error(s) occurred while extracting routes:
+- The '404' status code is not a valid redirect response code. Please use one of the following redirect response codes: 301, 302, 303, 307, 308.
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Steps to Reproduce
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+1. Clone the repository:
 
 ```bash
-ng generate component component-name
+git clone https://github.com/vzarskus/catch-all-route-bug.git
+cd catch-all-route-bug
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+2. Install dependencies:
 
 ```bash
-ng generate --help
+npm install
 ```
 
-## Building
-
-To build the project run:
+3. Start the development server:
 
 ```bash
-ng build
+npm run start
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+4. Visit any URL in the browser (e.g., http://localhost:4200/features/view or just http://localhost:4200)
 
-## Running unit tests
+The error will appear in the terminal.
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+## Bug Source
 
-```bash
-ng test
+The bug happens because of route configuration `src/app/features/features.routes.ts`.
+`redirectTo` seems to have a buggy interaction with catch-all route registered in `src/app/app.routes.ts`.
+
+```typescript
+{
+  path: '',
+  component: FeaturesComponent,
+  children: [
+    { path: 'details', component: FeatureDetailsComponent },
+    { path: 'view', redirectTo: 'details', pathMatch: 'full' }, // This line causes the issue
+  ],
+}
 ```
 
-## Running end-to-end tests
+Remove the `redirectTo` line to fix the issue:
 
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
+```typescript
+{
+  path: '',
+  component: FeaturesComponent,
+  children: [
+    { path: 'details', component: FeatureDetailsComponent },
+    // Remove the redirect line
+  ],
+}
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+## Expected Behavior
 
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+The application should work properly with nested `redirectTo` routes and catch-all route which returns 404 status code (very common practice) without throwing any server errors.
