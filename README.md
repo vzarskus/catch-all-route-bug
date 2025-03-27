@@ -1,4 +1,4 @@
-# Angular SSR Redirect Bug Reproduction
+# Angular SSR Catch-all route Bug Reproduction
 
 This project demonstrates a bug in Angular's SSR (Server-Side Rendering) where using `redirectTo` in routes causes a 404 status code error.
 
